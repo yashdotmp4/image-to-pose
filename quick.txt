@@ -1,0 +1,16 @@
+lit review
+pavllo et al. (videopose3d, cvpr 2019)
+uses temporal conv nets to lift 2d keypoints into 3d, work swell on video sequences, doesn’t need full 3d labels (semi-supervised), gives smooth stable 3d poses from 2d input.
+- https://openaccess.thecvf.com/content_CVPR_2019/papers/Pavllo_3D_Human_Pose_Estimation_in_Video_With_Temporal_Convolutions_and_CVPR_2019_paper.pdf
+gardner et al. (deep parametric indoor lighting estimation, iccv 2019)
+predicts lighting setup (direction + intensity) from a single indoor image, represents lights parametrically, shows deep nets can infer lighting from shadows and reflections.
+- https://openaccess.thecvf.com/content_ICCV_2019/papers/Gardner_Deep_Parametric_Indoor_Lighting_Estimation_ICCV_2019_paper.pdf
+sial et al. (light direction and color estimation, 2020)
+regression model predicting light direction and color from one image, smaller and more practical architecture, works on both synthetic and real data, good baseline for lighting extraction.
+- https://arxiv.org/abs/2009.08941
+joo et al. (deep 3d human pose estimation: a review, 2021)
+comprehensive survey on 3d pose estimation methods, covers 2d detectors, 3d lifters, temporal models, and datasets, highlights challenges like occlusion and depth ambiguity.
+- https://www.sciencedirect.com/science/article/pii/S1077314221000692
+weber et al. (editable indoor lighting estimation, eccv 2022)
+moder napproach combining neural and parametric lighting, outputs editable lighting parameters for interpretability, bridges rendering and deep learning.
+- https://arxiv.org/abs/2211.03928
