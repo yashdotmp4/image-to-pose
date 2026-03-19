@@ -29,7 +29,7 @@ class ResidualBlock(nn.Module):
         return out + residual
     
 class MartinezNet(nn.Module):
-    def __init__(self, num_joints_in=16, num_joints_out=16, dropout=0.5):
+    def __init__(self, num_joints_in=28, num_joints_out=28, dropout=0.5):
         super(MartinezNet, self).__init__()
         self.input_proj = LinearBlock(num_joints_in * 2, 1024, dropout)
         self.res1 = ResidualBlock(1024, dropout)
@@ -37,12 +37,10 @@ class MartinezNet(nn.Module):
         self.output_proj = nn.Linear(1024, num_joints_out * 3)
 
     def forward(self, x):
-        # x shape: (batch, 32) — 16 joints * 2 coordinates
         x = self.input_proj(x)
         x = self.res1(x)
         x = self.res2(x)
         x = self.output_proj(x)
-        # reshape to (batch, 16, 3)
         return x.view(x.shape[0], -1, 3)
     
 if __name__ == "__main__":
