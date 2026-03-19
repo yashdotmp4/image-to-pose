@@ -1,0 +1,11 @@
+__pycache__/
+*.pth
+*.npz
+*.pt
+*.pyc
+*.png
+data/
+checkpoints/
+.DS_Store
+.env
+*.egg-info/
