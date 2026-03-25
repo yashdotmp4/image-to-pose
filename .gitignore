@@ -9,4 +9,7 @@ data/
 checkpoints/
 .DS_Store
 .env
-*.egg-info/
+*.egg-info/data/
+checkpoints/
+*.pth
+Downloads/
