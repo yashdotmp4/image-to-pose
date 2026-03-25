@@ -4,6 +4,7 @@ __pycache__/
 *.pt
 *.pyc
 *.png
+*.glb
 data/
 checkpoints/
 .DS_Store
