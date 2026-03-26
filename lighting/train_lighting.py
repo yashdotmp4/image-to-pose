@@ -14,6 +14,7 @@ Outputs:
 import argparse
 import os
 import math
+import time
 from pathlib import Path
 
 import torch
@@ -121,16 +122,18 @@ def main():
     best_val_err = float('inf')
 
     print(f"\nTraining for {args.epochs} epochs...")
-    print(f"{'Epoch':>6} {'Train Loss':>12} {'Train Err°':>12} {'Val Loss':>10} {'Val Err°':>10} {'LR':>10}")
+    print(f"{'Epoch':>6} {'Train Loss':>12} {'Train Err°':>12} {'Val Loss':>10} {'Val Err°':>10} {'LR':>10} {'Time':>8}")    
     print('-' * 65)
 
     for epoch in range(1, args.epochs + 1):
+        t0 = time.time()
         train_loss, train_err = train_epoch(model, train_loader, optimiser, device)
         val_loss,   val_err   = val_epoch(model, val_loader, device)
         scheduler.step()
+        elapsed = time.time() - t0
 
         lr = scheduler.get_last_lr()[0]
-        print(f"{epoch:>6} {train_loss:>12.4f} {train_err:>11.2f}° {val_loss:>10.4f} {val_err:>9.2f}° {lr:>10.6f}")
+        print(f"{epoch:>6} {train_loss:>12.4f} {train_err:>11.2f}° {val_loss:>10.4f} {val_err:>9.2f}° {lr:>10.6f} {elapsed:>7.1f}s")
 
         # Save best
         if val_err < best_val_err:
