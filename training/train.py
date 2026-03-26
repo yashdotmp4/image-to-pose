@@ -15,7 +15,7 @@ def train(data_path, epochs=100, batch_size=64, lr=1e-3, dropout=0.5):
     train_set, val_set = random_split(dataset, [train_size, val_size], generator=generator)
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=batch_size)
-    model = MartinezNet(dropout=dropout)
+    model = MartinezNet(num_joints_in=17, num_joints_out=17, dropout=dropout)
     optimiser = torch.optim.Adam(model.parameters(), lr=lr)
     best_val_loss = float('inf')
     train_losses = []
@@ -64,4 +64,4 @@ def train(data_path, epochs=100, batch_size=64, lr=1e-3, dropout=0.5):
     print('Loss curve saved to checkpoints/loss_curve.png')
 
 if __name__ == '__main__':
-    train('data/mpi_inf_3dhp_train.npz')
+    train('data/mpi_inf_3dhp_train.npz', epochs=50)

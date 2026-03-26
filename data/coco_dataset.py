@@ -54,7 +54,8 @@ class COCOKeypointDataset(Dataset):
         
         # filter annotations - only keep those with at least one keypoint
         self.annotations = [a for a in data['annotations'] 
-                           if a['num_keypoints'] > 0 and a['iscrowd'] == 0]
+                    if a['num_keypoints'] > 0 and a['iscrowd'] == 0
+                    and os.path.exists(os.path.join(img_dir, self.id_to_file[a['image_id']]))]
         
         self.transform = T.Compose([
             T.Resize(input_size),
