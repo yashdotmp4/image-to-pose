@@ -144,6 +144,8 @@
                 skeletonGroup.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffffff })));
             });
         }
+        
+
 
         // ── Mannequin ──────────────────────────────────────────────────────────
         let mannequin    = null;
@@ -288,6 +290,15 @@
                 drawSkeleton(data.keypoints_3d);
                 poseMannequin(data.keypoints_3d);
                 drawLightArrow(data.light_direction);
+                if (data.debug_image) {
+                    const existing = document.getElementById('debug-img');
+                    if (existing) existing.remove();
+                    const img = document.createElement('img');
+                    img.id = 'debug-img';
+                    img.src = 'data:image/jpeg;base64,' + data.debug_image;
+                    img.style.cssText = 'width:100%; border-radius:6px; margin-top:8px;';
+                    document.getElementById('status').after(img);
+                }
                 document.getElementById('status').textContent = 'Done!';
             } catch (err) {
                 document.getElementById('status').textContent = 'Error connecting to backend';
