@@ -138,7 +138,7 @@ class HRModule(nn.Module):
         return self.fusion(x)
 
 class HRNet(nn.Module):
-    def __init__(self, num_keypoints=17, width=32):
+    def __init__(self, num_keypoints=17, width=48):
         super(HRNet, self).__init__()
         
         # stem - initial feature extraction
