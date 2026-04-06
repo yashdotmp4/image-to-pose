@@ -3,9 +3,11 @@ from torch.utils.data import DataLoader, random_split
 from data.dataset import PoseDataset
 from models.lifting_network import MartinezNet
 import matplotlib.pyplot as plt
-from training.loss import mpjpe
 import os
 
+def mpjpe(predicted, target):
+    # predicted, target shape: (batch, 16, 3)
+    return torch.mean(torch.norm(predicted - target, dim=-1))
 
 def train(data_path, epochs=100, batch_size=64, lr=1e-3, dropout=0.5):
     dataset = PoseDataset(data_path)
