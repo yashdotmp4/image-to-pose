@@ -1,9 +1,10 @@
 import torch
 import torch.optim as optim
-from torch.utils.data import DataLoader, random_split, Subset
+from torch.utils.data import DataLoader, random_split
 from models.hrnet import HRNet
 from data.coco_dataset import COCOKeypointDataset
 import os
+import time
 
 def heatmap_loss(predicted, target, visibility):
     num_joints = predicted.shape[1]
@@ -15,16 +16,14 @@ def heatmap_loss(predicted, target, visibility):
         loss += torch.mean((predicted[mask, j] - target[mask, j]) ** 2)
     return loss / num_joints
 
-def train(img_dir, ann_file, epochs=20, batch_size=64, lr=1e-3):
+def train(img_dir, ann_file, epochs=50, batch_size=32, lr=1e-3):
     dataset = COCOKeypointDataset(img_dir=img_dir, ann_file=ann_file)
-    
-    val_size = int(len(dataset) * 0.1)
+    val_size = int(len(dataset) * 0.2)
     train_size = len(dataset) - val_size
     generator = torch.Generator().manual_seed(42)
     train_set, val_set = random_split(dataset, [train_size, val_size], generator=generator)
-
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=4)
-    val_loader = DataLoader(val_set, batch_size=batch_size, num_workers=4)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    val_loader = DataLoader(val_set, batch_size=batch_size, num_workers=4, pin_memory=True)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}')
@@ -33,10 +32,19 @@ def train(img_dir, ann_file, epochs=20, batch_size=64, lr=1e-3):
     optimiser = optim.Adam(model.parameters(), lr=lr)
 
     best_val_loss = float('inf')
-    train_losses = []
-    val_losses = []
+    start_epoch = 0
 
-    for epoch in range(epochs):
+    resume_path = 'checkpoints/hrnet_latest.pth'
+    if os.path.exists(resume_path):
+        checkpoint = torch.load(resume_path, map_location=device, weights_only=False)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimiser.load_state_dict(checkpoint['optimiser_state_dict'])
+        start_epoch = checkpoint['epoch'] + 1
+        best_val_loss = checkpoint['best_val_loss']
+        print(f'Resumed from epoch {start_epoch}')
+
+    for epoch in range(start_epoch, epochs):
+        epoch_start = time.time()
         model.train()
         train_loss = 0
         for imgs, heatmaps, visibility in train_loader:
@@ -47,6 +55,7 @@ def train(img_dir, ann_file, epochs=20, batch_size=64, lr=1e-3):
             outputs = model(imgs)
             loss = heatmap_loss(outputs, heatmaps, visibility)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimiser.step()
             train_loss += loss.item()
         train_loss /= len(train_loader)
@@ -62,9 +71,8 @@ def train(img_dir, ann_file, epochs=20, batch_size=64, lr=1e-3):
                 val_loss += heatmap_loss(outputs, heatmaps, visibility).item()
         val_loss /= len(val_loader)
 
-        train_losses.append(train_loss)
-        val_losses.append(val_loss)
-        print(f'Epoch {epoch+1}/{epochs} - Train: {train_loss:.4f}, Val: {val_loss:.4f}')
+        epoch_time = time.time() - epoch_start
+        print(f'Epoch {epoch+1}/{epochs} - Train: {train_loss:.4f}, Val: {val_loss:.4f} - Time: {epoch_time/60:.1f}min')
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -72,8 +80,15 @@ def train(img_dir, ann_file, epochs=20, batch_size=64, lr=1e-3):
             torch.save(model.state_dict(), 'checkpoints/hrnet_best.pth')
             print(f'  -> Saved best model')
 
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimiser_state_dict': optimiser.state_dict(),
+            'best_val_loss': best_val_loss,
+        }, 'checkpoints/hrnet_latest.pth')
+
 if __name__ == '__main__':
     train(
-        img_dir='/user/HS402/yv00051/com1027yv00051/FYP/image-to-pose/data/train2017',
-        ann_file='/user/HS402/yv00051/com1027yv00051/FYP/image-to-pose/data/annotations/person_keypoints_train2017.json'
+        img_dir='/scratch/fypstuffs/train2017',
+        ann_file='/scratch/fypstuffs/annotations_trainval2017/annotations/person_keypoints_train2017.json'
     )

@@ -5,10 +5,6 @@ import json
 import os
 from PIL import Image
 import torchvision.transforms as T
-import torchvision.transforms.functional as TF
-import random
-
-FLIP_PAIRS = [[1,2],[3,4],[5,6],[7,8],[9,10],[11,12],[13,14],[15,16]]
 
 def generate_heatmaps(keypoints, visibility, heatmap_size=(96, 72), sigma=3):
     num_joints = keypoints.shape[0]
@@ -70,16 +66,7 @@ class COCOKeypointDataset(Dataset):
         kps[:, 0] = (kps[:, 0] - x) * self.input_size[1] / orig_w if orig_w > 0 else kps[:, 0]
         kps[:, 1] = (kps[:, 1] - y) * self.input_size[0] / orig_h if orig_h > 0 else kps[:, 1]
 
-        # random horizontal flip with correct keypoint swap
-        if random.random() > 0.5:
-            img = TF.hflip(img)
-            kps[:, 0] = self.input_size[1] - kps[:, 0]
-            for left, right in FLIP_PAIRS:
-                kps[left], kps[right] = kps[right].copy(), kps[left].copy()
-
-        # random rotation
-        angle = random.uniform(-30, 30)
-        img = TF.rotate(img, angle)
+    
 
         img = self.base_transform(img)
 
