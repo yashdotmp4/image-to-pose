@@ -165,7 +165,7 @@
             const targetWorld = new THREE.Vector3(
                 toKp[0] - fromKp[0],
                 toKp[1] - fromKp[1],
-                toKp[2] - fromKp[2]
+                0  // ignore Z for rotation direction
             ).normalize();
 
             const parentWorldQuat = new THREE.Quaternion();
@@ -287,7 +287,7 @@
             try {
                 const response = await fetch('http://localhost:8000/predict', { method: 'POST', body: formData });
                 const data     = await response.json();
-                drawSkeleton(data.keypoints_3d);
+                // eleton(data.keypoints_3d);
                 poseMannequin(data.keypoints_3d);
                 drawLightArrow(data.light_direction);
                 if (data.debug_image) {
@@ -300,6 +300,15 @@
                     document.getElementById('status').after(img);
                 }
                 document.getElementById('status').textContent = 'Done!';
+                if (data.debug_3d) {
+                    const existing = document.getElementById('debug-3d');
+                    if (existing) existing.remove();
+                    const img = document.createElement('img');
+                    img.id = 'debug-3d';
+                    img.src = 'data:image/jpeg;base64,' + data.debug_3d;
+                    img.style.cssText = 'width:100%; border-radius:6px; margin-top:8px;';
+                    document.getElementById('debug-img').after(img);
+                }
             } catch (err) {
                 document.getElementById('status').textContent = 'Error connecting to backend';
                 console.error(err);

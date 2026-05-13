@@ -38,7 +38,7 @@ hrnet.load_state_dict(torch.load(
     map_location=device, weights_only=False))
 hrnet.eval()
 
-martinez = MartinezNet(num_joints_in=28, num_joints_out=28).to(device)
+martinez = MartinezNet(num_joints_in=17, num_joints_out=17).to(device)
 martinez.load_state_dict(torch.load(
     os.path.join(BASE_DIR, 'checkpoints/best_model.pth'),
     map_location=device, weights_only=False))
@@ -96,29 +96,29 @@ async def predict(image: UploadFile = File(...)):
         torso_size = max(torso_size / 2, 1e-6)
         keypoints_2d_norm = keypoints_2d_norm / torso_size
 
-        # pad 17 joints to 28
-        padded = np.zeros((28, 2))
-        padded[:17] = keypoints_2d_norm
-        inp_2d = torch.tensor(padded.reshape(1, -1), dtype=torch.float32).to(device)
+        # get Z from MartinezNet
+        inp_2d = torch.tensor(keypoints_2d_norm.reshape(1, -1), dtype=torch.float32).to(device)
+        pose_3d_martinez = martinez(inp_2d)[0].detach().cpu().numpy()
 
-        # lift to 3D
-        pose_3d = martinez(inp_2d)[0].cpu().numpy()  # (28, 3)
-        pose_3d = pose_3d[:17]  # take first 17
+        # use 2D for X,Y but MartinezNet for Z only
+        pose_3d = np.zeros((17, 3))
+        pose_3d[:, 0] = keypoints_2d_norm[:, 0]
+        pose_3d[:, 1] = -keypoints_2d_norm[:, 1]
+        pose_3d[:, 2] = pose_3d_martinez[:, 2]
 
-    # 3D debug
+    # debug plot
     SKELETON_3D = [(0,1),(0,2),(1,3),(2,4),(0,5),(0,6),(5,6),(5,7),(7,9),(6,8),(8,10),(5,11),(6,12),(11,12),(11,13),(13,15),(12,14),(14,16)]
+    fig, ax1 = plt.subplots(1, 1, figsize=(5, 8))
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
     ax1.set_title('Front View')
     ax1.scatter(pose_3d[:, 0], pose_3d[:, 1], c='red', s=30)
     for a, b in SKELETON_3D:
         ax1.plot([pose_3d[a,0], pose_3d[b,0]], [pose_3d[a,1], pose_3d[b,1]], 'lime')
-    ax1.invert_yaxis()
     ax1.set_aspect('equal')
-    ax2.set_title('Side View')
+    ax2.set_title('Side View (Depth)')
     ax2.scatter(pose_3d[:, 2], pose_3d[:, 1], c='red', s=30)
     for a, b in SKELETON_3D:
         ax2.plot([pose_3d[a,2], pose_3d[b,2]], [pose_3d[a,1], pose_3d[b,1]], 'lime')
-    ax2.invert_yaxis()
     ax2.set_aspect('equal')
     plt.tight_layout()
     buf3d = io.BytesIO()
@@ -126,10 +126,7 @@ async def predict(image: UploadFile = File(...)):
     plt.close()
     debug_3d_b64 = base64.b64encode(buf3d.getvalue()).decode()
 
-    pose_3d[:, 0] = -pose_3d[:, 0]
-    pose_3d[:, 1] = -pose_3d[:, 1] + 1.0
-    pose_3d = pose_3d * 0.8
-    pose_3d[:, 1] += 0.8
+    pose_3d[:, 1] += 1.0
 
     light_direction = [1, 2, 1]
 
