@@ -2,14 +2,12 @@ import torch
 from torch.utils.data import DataLoader, random_split
 from data.dataset import PoseDataset
 from models.lifting_network import MartinezNet
-import matplotlib.pyplot as plt
 import os
 
 def mpjpe(predicted, target):
-    # predicted, target shape: (batch, 16, 3)
     return torch.mean(torch.norm(predicted - target, dim=-1))
 
-def train(data_path, epochs=100, batch_size=64, lr=1e-3, dropout=0.5):
+def train(data_path, epochs=200, batch_size=64, lr=1e-3, dropout=0.5):
     dataset = PoseDataset(data_path)
     val_size = int(len(dataset) * 0.1)
     train_size = len(dataset) - val_size
@@ -17,16 +15,20 @@ def train(data_path, epochs=100, batch_size=64, lr=1e-3, dropout=0.5):
     train_set, val_set = random_split(dataset, [train_size, val_size], generator=generator)
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=batch_size)
-    model = MartinezNet(num_joints_in=17, num_joints_out=17, dropout=dropout)
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'Using device: {device}')
+
+    model = MartinezNet(num_joints_in=17, num_joints_out=17, dropout=dropout).to(device)
     optimiser = torch.optim.Adam(model.parameters(), lr=lr)
+
     best_val_loss = float('inf')
-    train_losses = []
-    val_losses = []
 
     for epoch in range(epochs):
         model.train()
         train_loss = 0
         for inputs, targets in train_loader:
+            inputs, targets = inputs.to(device), targets.to(device)
             optimiser.zero_grad()
             outputs = model(inputs)
             loss = mpjpe(outputs, targets)
@@ -39,12 +41,10 @@ def train(data_path, epochs=100, batch_size=64, lr=1e-3, dropout=0.5):
         val_loss = 0
         with torch.no_grad():
             for inputs, targets in val_loader:
+                inputs, targets = inputs.to(device), targets.to(device)
                 outputs = model(inputs)
                 val_loss += mpjpe(outputs, targets).item()
         val_loss /= len(val_loader)
-
-        train_losses.append(train_loss)
-        val_losses.append(val_loss)
 
         print(f'Epoch {epoch+1}/{epochs} - Train: {train_loss:.4f}, Val: {val_loss:.4f}')
 
@@ -54,16 +54,5 @@ def train(data_path, epochs=100, batch_size=64, lr=1e-3, dropout=0.5):
             torch.save(model.state_dict(), 'checkpoints/best_model.pth')
             print(f'  -> Saved best model')
 
-    # plot and save loss curve
-    plt.figure()
-    plt.plot(train_losses, label='Train MPJPE')
-    plt.plot(val_losses, label='Val MPJPE')
-    plt.xlabel('Epoch')
-    plt.ylabel('MPJPE (m)')
-    plt.title('Training Curve')
-    plt.legend()
-    plt.savefig('checkpoints/loss_curve.png')
-    print('Loss curve saved to checkpoints/loss_curve.png')
-
 if __name__ == '__main__':
-    train('data/mpi_inf_3dhp_train.npz', epochs=50)
+    train('data/mpi_inf_3dhp_train.npz')
