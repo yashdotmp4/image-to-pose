@@ -2,14 +2,11 @@ import torch
 from torch.utils.data import Dataset
 import numpy as np
 
-MPI_TO_COCO = [6, 6, 6, 6, 6, 9, 14, 10, 15, 11, 16, 18, 23, 19, 24, 20, 25]
-
 class PoseDataset(Dataset):
     def __init__(self, data_path):
         data = np.load(data_path, allow_pickle=True)
-
-        kps2d = data['keypoints2d'][:, MPI_TO_COCO, :2]
-        kps3d = data['keypoints3d'][:, MPI_TO_COCO, :3]
+        kps2d = data['keypoints2d']  # (N, 17, 2) already in COCO format
+        kps3d = data['keypoints3d']  # (N, 17, 3)
 
         # subtract root (left hip = index 11)
         root_2d = kps2d[:, 11:12, :]

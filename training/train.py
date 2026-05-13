@@ -7,15 +7,15 @@ import os
 def mpjpe(predicted, target):
     return torch.mean(torch.norm(predicted - target, dim=-1))
 
-def train(data_path, epochs=200, batch_size=64, lr=1e-3, dropout=0.5):
+def train(data_path, epochs=200, batch_size=32, lr=1e-3, dropout=0.5):
     dataset = PoseDataset(data_path)
-    val_size = int(len(dataset) * 0.1)
+    val_size = int(len(dataset) * 0.2)
     train_size = len(dataset) - val_size
     generator = torch.Generator().manual_seed(42)
     train_set, val_set = random_split(dataset, [train_size, val_size], generator=generator)
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_set, batch_size=batch_size)
-
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
+    val_loader = DataLoader(val_set, batch_size=batch_size, drop_last=True)
+        
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}')
 
@@ -55,4 +55,4 @@ def train(data_path, epochs=200, batch_size=64, lr=1e-3, dropout=0.5):
             print(f'  -> Saved best model')
 
 if __name__ == '__main__':
-    train('data/mpi_inf_3dhp_train.npz')
+    train('/scratch/fyp-stuff/3dpw_hrnet_full.npz', epochs=200)
