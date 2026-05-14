@@ -1,0 +1,101 @@
+{
+  "threshold": 0.2,
+  "models": [
+    {
+      "name": "hrnet_fewer_augment",
+      "checkpoint": "checkpoints/hrnet-models-to-test/hrnet_fewer_augment.pth",
+      "mean_pck": 12.310412656953167,
+      "per_joint_pck": {
+        "nose": 20.839328537170264,
+        "left_eye": 22.139096702687723,
+        "right_eye": 21.694444444444443,
+        "left_ear": 18.38637094181935,
+        "right_ear": 18.34115805946792,
+        "left_shoulder": 13.906562443192147,
+        "right_shoulder": 13.612374886260238,
+        "left_elbow": 9.839497557571528,
+        "right_elbow": 11.523392486748099,
+        "left_wrist": 11.076443057722308,
+        "right_wrist": 12.046962736089842,
+        "left_hip": 6.309148264984227,
+        "right_hip": 7.0861204013377925,
+        "left_knee": 5.151953690303907,
+        "right_knee": 5.4132712456344585,
+        "left_ankle": 5.7152753723588505,
+        "right_ankle": 6.19561434041072
+      }
+    },
+    {
+      "name": "hrnet_first",
+      "checkpoint": "checkpoints/hrnet-models-to-test/hrnet_first.pth",
+      "mean_pck": 15.105777202338418,
+      "per_joint_pck": {
+        "nose": 24.34052757793765,
+        "left_eye": 26.350789692435576,
+        "right_eye": 25.305555555555554,
+        "left_ear": 23.979427836708453,
+        "right_ear": 22.034428794992174,
+        "left_shoulder": 16.142519541901475,
+        "right_shoulder": 15.141037306642403,
+        "left_elbow": 12.072575017445917,
+        "right_elbow": 13.021433510025352,
+        "left_wrist": 12.766510660426416,
+        "right_wrist": 14.267483409903011,
+        "left_hip": 8.706624605678233,
+        "right_hip": 8.591137123745819,
+        "left_knee": 8.24891461649783,
+        "right_knee": 7.566938300349244,
+        "left_ankle": 9.456182888811915,
+        "right_ankle": 8.806126000696137
+      }
+    },
+    {
+      "name": "hrnet_learning_augments",
+      "checkpoint": "checkpoints/hrnet-models-to-test/hrnet_learning_augments.pth",
+      "mean_pck": 3.397461258668084,
+      "per_joint_pck": {
+        "nose": 7.026378896882495,
+        "left_eye": 7.924632862288723,
+        "right_eye": 7.055555555555555,
+        "left_ear": 5.946640951462552,
+        "right_ear": 5.790297339593114,
+        "left_shoulder": 3.3448463915651696,
+        "right_shoulder": 2.383985441310282,
+        "left_elbow": 2.2563386834147474,
+        "right_elbow": 2.074210647614658,
+        "left_wrist": 3.2761310452418098,
+        "right_wrist": 2.322613578356304,
+        "left_hip": 0.9884332281808622,
+        "right_hip": 1.3168896321070234,
+        "left_knee": 1.5629522431259046,
+        "right_knee": 1.2223515715948778,
+        "left_ankle": 1.489435400069276,
+        "right_ankle": 1.7751479289940828
+      }
+    },
+    {
+      "name": "hrnet_mma",
+      "checkpoint": "checkpoints/hrnet-models-to-test/hrnet_mma.pth",
+      "mean_pck": 11.591888828613921,
+      "per_joint_pck": {
+        "nose": 20.81534772182254,
+        "left_eye": 21.97284566361873,
+        "right_eye": 21.0,
+        "left_ear": 17.48633879781421,
+        "right_ear": 17.120500782472615,
+        "left_shoulder": 12.997636793310308,
+        "right_shoulder": 12.083712465878072,
+        "left_elbow": 9.886020004652245,
+        "right_elbow": 10.716755012675732,
+        "left_wrist": 10.192407696307852,
+        "right_wrist": 11.766207248596222,
+        "left_hip": 5.825446898002103,
+        "right_hip": 6.082775919732441,
+        "left_knee": 4.399421128798842,
+        "right_knee": 5.064027939464494,
+        "left_ankle": 4.849324558365085,
+        "right_ankle": 4.803341454925166
+      }
+    }
+  ]
+}
