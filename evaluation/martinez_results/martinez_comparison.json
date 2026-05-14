@@ -1,0 +1,100 @@
+{
+  "models": [
+    {
+      "name": "mart_aug",
+      "checkpoint": "checkpoints/martinez-to-test/mart_aug.pth",
+      "mean_mpjpe": 0.9798293113708496,
+      "per_joint_mpjpe": {
+        "nose": 1.2928721904754639,
+        "left_eye": 1.2928721904754639,
+        "right_eye": 1.2928721904754639,
+        "left_ear": 1.2928721904754639,
+        "right_ear": 1.2928721904754639,
+        "left_shoulder": 1.047031044960022,
+        "right_shoulder": 1.0765022039413452,
+        "left_elbow": 0.77775639295578,
+        "right_elbow": 0.9014541506767273,
+        "left_wrist": 0.8023509383201599,
+        "right_wrist": 0.9277523756027222,
+        "left_hip": 0.005567642860114574,
+        "right_hip": 0.261140912771225,
+        "left_knee": 0.7474766373634338,
+        "right_knee": 0.8147215843200684,
+        "left_ankle": 1.4095605611801147,
+        "right_ankle": 1.421423316001892
+      }
+    },
+    {
+      "name": "mart_aug_two",
+      "checkpoint": "checkpoints/martinez-to-test/mart_aug_two.pth",
+      "mean_mpjpe": 0.2915506660938263,
+      "per_joint_mpjpe": {
+        "nose": 0.25423991680145264,
+        "left_eye": 0.2542397379875183,
+        "right_eye": 0.25423991680145264,
+        "left_ear": 0.25423991680145264,
+        "right_ear": 0.2542397677898407,
+        "left_shoulder": 0.22879503667354584,
+        "right_shoulder": 0.3086020052433014,
+        "left_elbow": 0.3448563814163208,
+        "right_elbow": 0.4248881936073303,
+        "left_wrist": 0.5058428645133972,
+        "right_wrist": 0.5710260272026062,
+        "left_hip": 0.005773630458861589,
+        "right_hip": 0.12572351098060608,
+        "left_knee": 0.22091571986675262,
+        "right_knee": 0.28399983048439026,
+        "left_ankle": 0.31177783012390137,
+        "right_ankle": 0.3529609441757202
+      }
+    },
+    {
+      "name": "mart_current",
+      "checkpoint": "checkpoints/martinez-to-test/mart_current.pth",
+      "mean_mpjpe": 0.9631206393241882,
+      "per_joint_mpjpe": {
+        "nose": 1.2194465398788452,
+        "left_eye": 1.210321307182312,
+        "right_eye": 1.2176508903503418,
+        "left_ear": 1.217645525932312,
+        "right_ear": 1.2147133350372314,
+        "left_shoulder": 1.031209945678711,
+        "right_shoulder": 1.0894017219543457,
+        "left_elbow": 0.7720423340797424,
+        "right_elbow": 0.8942087292671204,
+        "left_wrist": 0.7908291816711426,
+        "right_wrist": 0.9191306233406067,
+        "left_hip": 0.0038187913596630096,
+        "right_hip": 0.2505815923213959,
+        "left_knee": 0.7189063429832458,
+        "right_knee": 0.8648198246955872,
+        "left_ankle": 1.409507393836975,
+        "right_ankle": 1.5488163232803345
+      }
+    },
+    {
+      "name": "mart_model",
+      "checkpoint": "checkpoints/martinez-to-test/mart_model.pth",
+      "mean_mpjpe": 1.403838872909546,
+      "per_joint_mpjpe": {
+        "nose": 1.647943139076233,
+        "left_eye": 1.6479432582855225,
+        "right_eye": 1.6479432582855225,
+        "left_ear": 1.6479430198669434,
+        "right_ear": 1.6479432582855225,
+        "left_shoulder": 1.871978521347046,
+        "right_shoulder": 1.2889643907546997,
+        "left_elbow": 1.6230943202972412,
+        "right_elbow": 0.8965022563934326,
+        "left_wrist": 1.5018471479415894,
+        "right_wrist": 1.2337346076965332,
+        "left_hip": 0.03355635330080986,
+        "right_hip": 0.5900533199310303,
+        "left_knee": 1.0243747234344482,
+        "right_knee": 1.546674132347107,
+        "left_ankle": 1.6804587841033936,
+        "right_ankle": 2.3343071937561035
+      }
+    }
+  ]
+}
