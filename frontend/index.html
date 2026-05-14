@@ -3,319 +3,443 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image to Pose</title>
+    <title>PoseAI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@200;300;400&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #1a1a1a; color: white; font-family: sans-serif; display: flex; height: 100vh; }
-        #sidebar { width: 300px; padding: 20px; background: #242424; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
-        #canvas-container { flex: 1; position: relative; }
-        h1 { font-size: 1.2rem; color: #eee; }
-        button { padding: 10px; background: #3a3a3a; color: white; border: none; border-radius: 6px; cursor: pointer; }
-        button:hover { background: #4a4a4a; }
-        input[type="file"] { color: white; }
-        label { font-size: 0.85rem; color: #aaa; }
+        :root { --bg:#1a1a1a; --panel:#111111; --border:#1e1e1e; --border-light:#2a2a2a; --text:#c8c8c8; --text-dim:#444; --accent:#e8e0d0; --accent-glow:rgba(232,224,208,0.08); }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; font-weight:300; display:flex; height:100vh; overflow:hidden; }
+        #sidebar { width:280px; min-width:280px; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; position:relative; z-index:10; overflow:hidden; }
+        #sidebar-inner { flex:1; overflow-y:auto; padding:28px 24px; display:flex; flex-direction:column; gap:24px; scrollbar-width:none; }
+        #sidebar-inner::-webkit-scrollbar { display:none; }
+        .logo { display:flex; flex-direction:column; gap:2px; padding-bottom:24px; border-bottom:1px solid var(--border); }
+        .logo-title { font-family:'DM Mono',monospace; font-size:0.75rem; font-weight:500; letter-spacing:0.25em; text-transform:uppercase; color:var(--accent); }
+        .logo-sub { font-size:0.65rem; color:var(--text-dim); letter-spacing:0.1em; }
+        .section { display:flex; flex-direction:column; gap:10px; }
+        .section-label { font-family:'DM Mono',monospace; font-size:0.6rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--text-dim); }
+        .upload-area { border:1px dashed var(--border-light); border-radius:4px; padding:16px; text-align:center; cursor:pointer; transition:border-color 0.2s,background 0.2s; position:relative; }
+        .upload-area:hover { border-color:var(--accent); background:var(--accent-glow); }
+        .upload-area input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+        .upload-icon { font-size:1.2rem; margin-bottom:6px; opacity:0.4; }
+        .upload-text { font-size:0.7rem; color:var(--text-dim); letter-spacing:0.05em; }
+        .btn { padding:11px 16px; background:var(--accent); color:#0a0a0a; border:none; border-radius:3px; cursor:pointer; font-family:'DM Mono',monospace; font-size:0.7rem; font-weight:500; letter-spacing:0.15em; text-transform:uppercase; transition:opacity 0.15s,transform 0.1s; width:100%; }
+        .btn:hover { opacity:0.85; } .btn:active { transform:scale(0.99); }
+        #status { font-size:0.68rem; color:var(--text-dim); letter-spacing:0.05em; min-height:16px; }
+        #status.active { color:var(--accent); } #status.error { color:#e05555; }
+        .divider { border:none; border-top:1px solid var(--border); }
+        .slider-group { display:flex; flex-direction:column; gap:8px; }
+        .slider-row { display:grid; grid-template-columns:24px 1fr 36px; align-items:center; gap:10px; }
+        .slider-axis { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--text-dim); text-transform:uppercase; }
+        input[type="range"] { -webkit-appearance:none; appearance:none; height:1px; background:var(--border-light); outline:none; border-radius:1px; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:10px; height:10px; border-radius:50%; background:var(--accent); cursor:pointer; }
+        .slider-val { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--text-dim); text-align:right; }
+        #image-preview,#debug-img,#debug-3d { width:100%; border-radius:3px; border:1px solid var(--border); display:block; }
+        .debug-toggle { font-family:'DM Mono',monospace; font-size:0.6rem; letter-spacing:0.1em; color:var(--text-dim); cursor:pointer; background:none; border:none; padding:0; text-align:left; text-decoration:underline; text-underline-offset:2px; }
+        .debug-toggle:hover { color:var(--text); }
+        #debug-section { display:none; } #debug-section.visible { display:flex; flex-direction:column; gap:8px; }
+        #viewport { flex:1; position:relative; }
+        #viewport canvas { position:absolute; top:0; left:0; width:100%; height:100%; }
+        #viewport-label { position:absolute; bottom:24px; left:24px; font-family:'DM Mono',monospace; font-size:0.55rem; letter-spacing:0.2em; color:rgba(255,255,255,0.12); text-transform:uppercase; pointer-events:none; }
     </style>
 </head>
 <body>
     <div id="sidebar">
-        <h1>Image to Pose</h1>
-        <input type="file" id="image-upload" accept="image/*">
-        <button id="process-btn">Extract Pose</button>
-        <div id="status">Upload an image to begin</div>
-        <div>
-            <label>Light X</label>
-            <input type="range" id="light-x" min="-10" max="10" value="1" step="0.1" style="width:100%">
-        </div>
-        <div>
-            <label>Light Y</label>
-            <input type="range" id="light-y" min="-10" max="10" value="2" step="0.1" style="width:100%">
-        </div>
-        <div>
-            <label>Light Z</label>
-            <input type="range" id="light-z" min="-10" max="10" value="1" step="0.1" style="width:100%">
+        <div id="sidebar-inner">
+            <div class="logo">
+                <div class="logo-title">PoseAI</div>
+                <div class="logo-sub">Image → 3D Pose Estimation</div>
+            </div>
+            <div class="section">
+                <div class="section-label">Input Image</div>
+                <div class="upload-area" id="upload-area">
+                    <input type="file" id="image-upload" accept="image/*">
+                    <div class="upload-icon">↑</div>
+                    <div class="upload-text">Drop image or click to browse</div>
+                </div>
+            </div>
+            <button class="btn" id="process-btn">Extract Pose</button>
+            <div id="status">Ready</div>
+            <hr class="divider">
+            <div class="section">
+                <div class="section-label">Light Direction</div>
+                <div class="slider-group">
+                    <div class="slider-row"><span class="slider-axis">X</span><input type="range" id="light-x" min="-10" max="10" value="5" step="0.1"><span class="slider-val" id="val-x">5.0</span></div>
+                    <div class="slider-row"><span class="slider-axis">Y</span><input type="range" id="light-y" min="-10" max="10" value="8" step="0.1"><span class="slider-val" id="val-y">8.0</span></div>
+                    <div class="slider-row"><span class="slider-axis">Z</span><input type="range" id="light-z" min="-10" max="10" value="5" step="0.1"><span class="slider-val" id="val-z">5.0</span></div>
+                </div>
+            </div>
+            <div class="section">
+                <div class="section-label">Light Settings</div>
+                <div class="slider-group">
+                    <div class="slider-row"><span class="slider-axis">Br</span><input type="range" id="light-intensity" min="0" max="3" value="1.2" step="0.05"><span class="slider-val" id="val-intensity">1.20</span></div>
+                    <div class="slider-row"><span class="slider-axis">Am</span><input type="range" id="light-ambient" min="0" max="2" value="0.6" step="0.05"><span class="slider-val" id="val-ambient">0.60</span></div>
+                </div>
+            </div>
+            <div class="section">
+                <div class="section-label">Depth</div>
+                <div class="slider-group">
+                    <div class="slider-row"><span class="slider-axis">Dp</span><input type="range" id="depth-scale" min="0" max="5" value="1" step="0.1"><span class="slider-val" id="val-depth">1.0</span></div>
+                </div>
+            </div>
+            <hr class="divider">
+            <div class="section">
+                <button class="debug-toggle" id="debug-toggle">Show debug views</button>
+                <div id="debug-section"></div>
+            </div>
         </div>
     </div>
-    <div id="canvas-container"></div>
+
+    <div id="viewport">
+        <div id="viewport-label">3D Viewport — Drag to orbit</div>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script>
-        // ── Renderer / Scene / Camera ──────────────────────────────────────────
-        const container = document.getElementById('canvas-container');
-        const scene     = new THREE.Scene();
-        const camera    = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-        const renderer  = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        renderer.setClearColor(0x1a1a1a);
-        container.appendChild(renderer.domElement);
+        // ── Scene ───────────────────────────────────────────────────
+        const viewport = document.getElementById('viewport');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a1a);
 
-        // ── Lights ─────────────────────────────────────────────────────────────
-        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(5, 10, 5);
+        const camera = new THREE.PerspectiveCamera(60, viewport.clientWidth / viewport.clientHeight, 0.01, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        viewport.appendChild(renderer.domElement);
+
+        window.addEventListener('resize', () => {
+            camera.aspect = viewport.clientWidth / viewport.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+        });
+
+        // ── Lights ──────────────────────────────────────────────────
+        const ambLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        dirLight.position.set(5, 8, 5);
+        dirLight.castShadow = true;
+        dirLight.shadow.bias = -0.0001;
+        dirLight.shadow.normalBias = 0.002;
+        dirLight.shadow.camera.near = 0.1;
+        dirLight.shadow.camera.far = 50;
+        dirLight.shadow.camera.left = -5;
+        dirLight.shadow.camera.right = 5;
+        dirLight.shadow.camera.top = 8;
+        dirLight.shadow.camera.bottom = -2;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
         scene.add(dirLight);
 
-        // ── Grid ───────────────────────────────────────────────────────────────
-        scene.add(new THREE.GridHelper(4, 10, 0x444444, 0x333333));
+        // ── Floor ───────────────────────────────────────────────────
+        const floor = new THREE.Mesh(
+            new THREE.PlaneGeometry(20, 20),
+            new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 })
+        );
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
 
-        // ── Orbit camera ───────────────────────────────────────────────────────
-        let isMouseDown = false;
-        let prevMouse   = { x: 0, y: 0 };
-        let spherical   = { theta: 0, phi: Math.PI / 3, radius: 3 };
+        // ── Orbit ───────────────────────────────────────────────────
+        let isMouseDown = false, prevMouse = { x: 0, y: 0 };
+        let spherical = { theta: 0, phi: Math.PI / 3, radius: 5 };
+        const orbitTarget = new THREE.Vector3(0, 1, 0);
 
         function updateCamera() {
             camera.position.set(
-                spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta),
-                spherical.radius * Math.cos(spherical.phi),
-                spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta)
+                orbitTarget.x + spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta),
+                orbitTarget.y + spherical.radius * Math.cos(spherical.phi),
+                orbitTarget.z + spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta)
             );
-            camera.lookAt(0, 1, 0);
+            camera.lookAt(orbitTarget);
         }
-
         renderer.domElement.addEventListener('mousedown', e => { isMouseDown = true; prevMouse = { x: e.clientX, y: e.clientY }; });
-        renderer.domElement.addEventListener('mouseup',   () => isMouseDown = false);
+        renderer.domElement.addEventListener('mouseup', () => isMouseDown = false);
         renderer.domElement.addEventListener('mousemove', e => {
             if (!isMouseDown) return;
             spherical.theta -= (e.clientX - prevMouse.x) * 0.01;
-            spherical.phi    = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi + (e.clientY - prevMouse.y) * 0.01));
+            spherical.phi = Math.max(0.05, Math.min(Math.PI - 0.05, spherical.phi + (e.clientY - prevMouse.y) * 0.01));
             prevMouse = { x: e.clientX, y: e.clientY };
             updateCamera();
         });
         renderer.domElement.addEventListener('wheel', e => {
-            spherical.radius = Math.max(1, Math.min(10, spherical.radius + e.deltaY * 0.01));
+            spherical.radius = Math.max(1, Math.min(15, spherical.radius + e.deltaY * 0.005));
             updateCamera();
         });
         updateCamera();
 
-        // ── Skeleton overlay ───────────────────────────────────────────────────
-        const SKELETON = [
-            [0,1],[0,2],[1,3],[2,4],[0,5],[0,6],
-            [5,6],[5,7],[7,9],[6,8],[8,10],
-            [5,11],[6,12],[11,12],
-            [11,13],[13,15],[12,14],[14,16]
+        // ── Materials ───────────────────────────────────────────────
+        const bodyMat  = new THREE.MeshStandardMaterial({ color: 0xd4d4d4, roughness: 0.45, metalness: 0.05, side: THREE.DoubleSide });
+        const limbMat  = new THREE.MeshStandardMaterial({ color: 0xd4d4d4, roughness: 0.45, metalness: 0.05 });
+        const jointMat = new THREE.MeshStandardMaterial({ color: 0xb0b0b0, roughness: 0.3,  metalness: 0.15 });
+        const headMat  = new THREE.MeshStandardMaterial({ color: 0xe2e2e2, roughness: 0.5 });
+        const handMat  = new THREE.MeshStandardMaterial({ color: 0xcacaca, roughness: 0.55 });
+
+        // ── Helpers ─────────────────────────────────────────────────
+        // rWide = radius at p1 (proximal), rNarrow = radius at p2 (distal)
+        function makeCylinder(p1, p2, rWide, rNarrow, mat) {
+            const dir = new THREE.Vector3().subVectors(p2, p1);
+            const len = dir.length();
+            if (len < 0.001) return null;
+            // CylinderGeometry(radiusTop, radiusBottom, height)
+            // Three.js cylinder goes +Y (top) to -Y (bottom)
+            // After rotation, p1 maps to bottom, p2 maps to top
+            // So radiusTop = rNarrow (p2 side), radiusBottom = rWide (p1 side)
+            const mesh = new THREE.Mesh(
+                new THREE.CylinderGeometry(rNarrow, rWide, len, 24, 1, false),
+                mat || limbMat
+            );
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.position.copy(new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5));
+            const up = new THREE.Vector3(0, 1, 0);
+            const nd = dir.clone().normalize();
+            const axis = new THREE.Vector3().crossVectors(up, nd);
+            const angle = Math.acos(Math.max(-1, Math.min(1, up.dot(nd))));
+            if (axis.length() > 0.001) mesh.setRotationFromAxisAngle(axis.normalize(), angle);
+            else if (nd.y < 0) mesh.rotation.z = Math.PI;
+            return mesh;
+        }
+
+        function makeSphere(pos, rx, ry, rz, mat) {
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 24), mat || jointMat);
+            mesh.scale.set(rx, ry !== undefined ? ry : rx, rz !== undefined ? rz : rx);
+            mesh.position.copy(pos);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            return mesh;
+        }
+
+        function makeTorso(ls, rs, lh, rh) {
+            const right = new THREE.Vector3().subVectors(rs, ls).normalize();
+            const sCenter = new THREE.Vector3().addVectors(ls, rs).multiplyScalar(0.5);
+            const hCenter = new THREE.Vector3().addVectors(lh, rh).multiplyScalar(0.5);
+            const up = new THREE.Vector3().subVectors(sCenter, hCenter).normalize();
+            const forward = new THREE.Vector3().crossVectors(right, up).normalize();
+            const depth = 0.13, sw = 0.07, hw = 0.045;
+            const lsE = ls.clone().addScaledVector(right, -sw);
+            const rsE = rs.clone().addScaledVector(right,  sw);
+            const lhE = lh.clone().addScaledVector(right, -hw);
+            const rhE = rh.clone().addScaledVector(right,  hw);
+            const f = forward.clone().multiplyScalar(depth);
+            const b = forward.clone().multiplyScalar(-depth);
+            const verts = new Float32Array([
+                lsE.x+f.x, lsE.y+f.y, lsE.z+f.z,
+                rsE.x+f.x, rsE.y+f.y, rsE.z+f.z,
+                rhE.x+f.x, rhE.y+f.y, rhE.z+f.z,
+                lhE.x+f.x, lhE.y+f.y, lhE.z+f.z,
+                lsE.x+b.x, lsE.y+b.y, lsE.z+b.z,
+                rsE.x+b.x, rsE.y+b.y, rsE.z+b.z,
+                rhE.x+b.x, rhE.y+b.y, rhE.z+b.z,
+                lhE.x+b.x, lhE.y+b.y, lhE.z+b.z,
+            ]);
+            const idx = [0,1,2,0,2,3, 5,4,7,5,7,6, 4,0,3,4,3,7, 1,5,6,1,6,2, 4,5,1,4,1,0, 3,2,6,3,6,7];
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+            geo.setIndex(idx);
+            geo.computeVertexNormals();
+            const mesh = new THREE.Mesh(geo, bodyMat);
+            mesh.castShadow = true;
+            return mesh;
+        }
+
+        function makeHand(wristPos, elbowPos) {
+            const dir = new THREE.Vector3().subVectors(wristPos, elbowPos).normalize();
+            const handCenter = wristPos.clone().addScaledVector(dir, 0.07);
+            const mesh = makeSphere(handCenter, 0.07, 0.05, 0.04, handMat);
+            const up = new THREE.Vector3(0, 1, 0);
+            const axis = new THREE.Vector3().crossVectors(up, dir);
+            const angle = Math.acos(Math.max(-1, Math.min(1, up.dot(dir))));
+            if (axis.length() > 0.001) mesh.setRotationFromAxisAngle(axis.normalize(), angle);
+            return mesh;
+        }
+
+        function makeFoot(anklePos, kneePos) {
+            const legDir = new THREE.Vector3().subVectors(anklePos, kneePos).normalize();
+            const footCenter = anklePos.clone();
+            footCenter.y += 0.015;
+            const forward = new THREE.Vector3(legDir.x, 0, legDir.z).normalize();
+            if (forward.length() < 0.01) forward.set(0, 0, 1);
+            footCenter.addScaledVector(forward, 0.07);
+            return makeSphere(footCenter, 0.08, 0.04, 0.055, handMat);
+        }
+
+        // ── Last keypoints (for depth slider) ───────────────────────
+        let lastKp = null;
+
+        function buildFigure(kp) {
+            lastKp = kp;
+            if (figureGroup) {
+                scene.remove(figureGroup);
+                figureGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+            }
+            figureGroup = new THREE.Group();
+
+            const depthScale = parseFloat(document.getElementById('depth-scale').value);
+            const pts = kp.map(p => new THREE.Vector3(p[0], p[1], p[2] * depthScale));
+
+            // Torso
+            figureGroup.add(makeTorso(pts[5], pts[6], pts[11], pts[12]));
+
+            // Neck
+            const shoulderMid = new THREE.Vector3().addVectors(pts[5], pts[6]).multiplyScalar(0.5);
+            const neckTop = pts[0].clone(); neckTop.y -= 0.05;
+            const neck = makeCylinder(shoulderMid, neckTop, 0.055, 0.045, limbMat);
+            if (neck) figureGroup.add(neck);
+
+            // Head — oval
+            const earMid = new THREE.Vector3().addVectors(pts[3], pts[4]).multiplyScalar(0.5);
+            const headCenter = new THREE.Vector3().addVectors(pts[0], earMid).multiplyScalar(0.5);
+            headCenter.y += 0.05;
+            figureGroup.add(makeSphere(headCenter, 0.14, 0.20, 0.12, headMat));;
+
+            // Arms — wide at shoulder, narrow at wrist
+            // makeCylinder(p1, p2, rWide=at p1, rNarrow=at p2)
+            const lUA = makeCylinder(pts[5], pts[7], 0.09, 0.08, limbMat); if (lUA) figureGroup.add(lUA);
+            const lFA = makeCylinder(pts[7], pts[9], 0.07, 0.05, limbMat); if (lFA) figureGroup.add(lFA);
+            const rUA = makeCylinder(pts[6], pts[8], 0.09, 0.08, limbMat); if (rUA) figureGroup.add(rUA);
+            const rFA = makeCylinder(pts[8], pts[10], 0.07, 0.05, limbMat); if (rFA) figureGroup.add(rFA);
+
+            // Hands
+            figureGroup.add(makeHand(pts[9],  pts[7]));
+            figureGroup.add(makeHand(pts[10], pts[8]));
+
+            // Legs — wide at hip, narrow at ankle
+            const lTh = makeCylinder(pts[11], pts[13], 0.1, 0.075, limbMat); if (lTh) figureGroup.add(lTh);
+            const lSh = makeCylinder(pts[13], pts[15], 0.075, 0.050, limbMat); if (lSh) figureGroup.add(lSh);
+            const rTh = makeCylinder(pts[12], pts[14], 0.1, 0.075, limbMat); if (rTh) figureGroup.add(rTh);
+            const rSh = makeCylinder(pts[14], pts[16], 0.075, 0.050, limbMat); if (rSh) figureGroup.add(rSh);
+
+            // Feet
+            figureGroup.add(makeFoot(pts[15], pts[13]));
+            figureGroup.add(makeFoot(pts[16], pts[14]));
+
+            // Joints
+            [
+                [5,  0.08], [6,  0.08],
+                [7,  0.068],[8,  0.068],
+                [9,  0.052],[10, 0.052],
+                [11, 0.085],[12, 0.085],
+                [13, 0.075],[14, 0.075],
+                [15, 0.052],[16, 0.052],
+            ].forEach(([i, r]) => figureGroup.add(makeSphere(pts[i], r, r, r, jointMat)));
+
+            // Feet on floor
+            const minY = Math.min(...kp.map(p => p[1]));
+            figureGroup.position.y = -minY + 0.02;
+            scene.add(figureGroup);
+        }
+
+        // ── Default T-pose ───────────────────────────────────────────
+        const T_POSE = [
+            [ 0.0,   1.9,  0.0],
+            [-0.06,  1.95, 0.0],
+            [ 0.06,  1.95, 0.0],
+            [-0.12,  1.9,  0.0],
+            [ 0.12,  1.9,  0.0],
+            [-0.25,  1.5,  0.0],
+            [ 0.25,  1.5,  0.0],
+            [-0.7,   1.5,  0.0],
+            [ 0.7,   1.5,  0.0],
+            [-1.1,   1.5,  0.0],
+            [ 1.1,   1.5,  0.0],
+            [-0.12,  1.0,  0.0],
+            [ 0.12,  1.0,  0.0],
+            [-0.12,  0.45, 0.0],
+            [ 0.12,  0.45, 0.0],
+            [-0.12, -0.1,  0.0],
+            [ 0.12, -0.1,  0.0],
         ];
 
-        // COCO keypoint order:
-        // 0=nose, 1=left_eye, 2=right_eye, 3=left_ear, 4=right_ear,
-        // 5=left_shoulder, 6=right_shoulder, 7=left_elbow, 8=right_elbow,
-        // 9=left_wrist, 10=right_wrist, 11=left_hip, 12=right_hip,
-        // 13=left_knee, 14=right_knee, 15=left_ankle, 16=right_ankle
-        const dummyKeypoints = [
-    [0,    1.5,  0],   // 0  nose
-    [-0.05,1.55, 0],   // 1  left_eye
-    [0.05, 1.55, 0],   // 2  right_eye
-    [-0.1, 1.53, 0],   // 3  left_ear
-    [0.1,  1.53, 0],   // 4  right_ear
-    [-0.25,1.2,  0],   // 5  left_shoulder
-    [0.25, 1.0, 0.3],   // 6  right_shoulder
-    [-0.35, 1.0, 0],   // 7  left_elbow
-    [0.35, 1.2,  0.3],   // 8  right_elbow
-    [-0.45,1.2,  0],   // 9  left_wrist
-    [0.45, 1.2,  0],   // 10 right_wrist
-    [-0.2, 0.7,  0],   // 11 left_hip
-    [0.2,  0.7,  0],   // 12 right_hip
-    [0.35,0.35, -0.3],   // 13 left_knee
-    [0.35, 0.35, 0],   // 14 right_knee
-    [-0.2, 0.05, 0],   // 15 left_ankle
-    [0.2,  0.05, 0],   // 16 right_ankle
-];
+        let figureGroup = null;
+        buildFigure(T_POSE);
 
-        let skeletonGroup = new THREE.Group();
-        skeletonGroup.visible = false;
-        scene.add(skeletonGroup);
-
-        function drawSkeleton(keypoints) {
-            scene.remove(skeletonGroup);
-            skeletonGroup = new THREE.Group();
-            scene.add(skeletonGroup);
-            keypoints.forEach(([x, y, z]) => {
-                const m = new THREE.Mesh(
-                    new THREE.SphereGeometry(0.04, 8, 8),
-                    new THREE.MeshPhongMaterial({ color: 0x00ff88 })
-                );
-                m.position.set(x, y, z);
-                skeletonGroup.add(m);
-            });
-            SKELETON.forEach(([i, j]) => {
-                const geo = new THREE.BufferGeometry().setFromPoints([
-                    new THREE.Vector3(...keypoints[i]),
-                    new THREE.Vector3(...keypoints[j])
-                ]);
-                skeletonGroup.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffffff })));
-            });
-        }
-        
-
-
-        // ── Mannequin ──────────────────────────────────────────────────────────
-        let mannequin    = null;
-        let modelWrapper = null;
-        const restPose   = {};
-
-        function getBone(name) {
-            let found = null;
-            mannequin.traverse(c => { if (c.isBone && c.name === name) found = c; });
-            return found;
-        }
-
-        function rotateBoneTowards(boneName, fromKp, toKp, restDir) {
-            const bone = getBone(boneName);
-            if (!bone || !restPose[boneName]) return;
-
-            const targetWorld = new THREE.Vector3(
-                toKp[0] - fromKp[0],
-                toKp[1] - fromKp[1],
-                0  // ignore Z for rotation direction
-            ).normalize();
-
-            const parentWorldQuat = new THREE.Quaternion();
-            if (bone.parent) bone.parent.getWorldQuaternion(parentWorldQuat);
-            const localTarget = targetWorld.clone().applyQuaternion(parentWorldQuat.clone().invert());
-
-            const q = new THREE.Quaternion().setFromUnitVectors(restDir, localTarget);
-            bone.quaternion.copy(restPose[boneName]).premultiply(q);
-            bone.updateMatrix();
-        }
-
-        function poseMannequin(keypoints) {
-            if (!mannequin) return;
-            const kp = keypoints;
-
-            // restDir vectors from getBoneWorldDir() after upright correction:
-            // Left arm bones point in -Z, right arm bones point in +Z, legs point down
-            const down = new THREE.Vector3( 0,  -1,  0);
-            const negZ = new THREE.Vector3( 0,   0, -1);
-            const posZ = new THREE.Vector3( 0,   0,  1);
-            const up   = new THREE.Vector3( 0,  1,  0);  // ← add this
-
-            rotateBoneTowards('ArmL_011',     kp[5],  kp[7],  negZ);
-            rotateBoneTowards('ForearmL_012', kp[7],  kp[9],  negZ);
-            rotateBoneTowards('ArmR_08',      kp[6],  kp[8],  posZ);
-            rotateBoneTowards('ForearmR_09',  kp[8],  kp[10], posZ);
-            rotateBoneTowards('ThighL_01',    kp[11], kp[13], down);
-            rotateBoneTowards('LegL_02',   kp[13], kp[15], up);   // changed from down
-            rotateBoneTowards('LegR_015',  kp[14], kp[16], up);   // changed from down
-            rotateBoneTowards('ThighR_014',   kp[12], kp[14], down);
-  
-
-            mannequin.updateMatrixWorld(true);
-        }
-
-        // ── Load GLB ───────────────────────────────────────────────────────────
-        const loader = new THREE.GLTFLoader();
-
-        loader.load('wooden.glb', function(gltf) {
-            mannequin = gltf.scene;
-
-            // Stand the model upright (it's Z-up from Blender/Sketchfab)
-            mannequin.rotation.y = Math.PI / 2;
-            mannequin.updateMatrixWorld(true);
-
-            // Store rest pose AFTER upright correction so restDir vectors are valid
-            mannequin.traverse(child => {
-                if (child.isBone) restPose[child.name] = child.quaternion.clone();
-                if (child.isMesh) child.material = new THREE.MeshPhongMaterial({ color: 0xd4a97a, shininess: 40 });
-            });
-
-            // Wrap for positioning only — no rotation on wrapper
-            modelWrapper = new THREE.Group();
-            modelWrapper.scale.set(0.4, 0.4, 0.4);
-            modelWrapper.add(mannequin);
-            scene.add(modelWrapper);
-
-            // Centre on grid
-            const box    = new THREE.Box3().setFromObject(modelWrapper);
-            const center = box.getCenter(new THREE.Vector3());
-            modelWrapper.position.x -= center.x;
-            modelWrapper.position.z -= center.z;
-            modelWrapper.position.y -= box.min.y;
-
-            poseMannequin(dummyKeypoints);
-            console.log('Model loaded and posed');
-        }, undefined, err => console.error('GLB load error:', err));
-
-        // ── Light arrow ────────────────────────────────────────────────────────
-        function drawLightArrow(direction) {
-            const existing = scene.getObjectByName('lightArrow');
-            if (existing) scene.remove(existing);
-            const group = new THREE.Group();
-            group.name  = 'lightArrow';
-            group.add(new THREE.ArrowHelper(
-                new THREE.Vector3(...direction).normalize(),
-                new THREE.Vector3(0, 1, 0), 0.8, 0xffff00, 0.2, 0.1
-            ));
-            scene.add(group);
-            dirLight.position.set(direction[0] * 5, direction[1] * 5, direction[2] * 5);
-        }
-
-        drawLightArrow([1, 2, 1]);
-
-        ['light-x', 'light-y', 'light-z'].forEach(id => {
-            document.getElementById(id).addEventListener('input', () => {
-                drawLightArrow([
-                    parseFloat(document.getElementById('light-x').value),
-                    parseFloat(document.getElementById('light-y').value),
-                    parseFloat(document.getElementById('light-z').value)
-                ]);
-            });
+        // ── Depth slider ────────────────────────────────────────────
+        document.getElementById('depth-scale').addEventListener('input', function() {
+            document.getElementById('val-depth').textContent = parseFloat(this.value).toFixed(1);
+            if (lastKp) buildFigure(lastKp);
         });
 
-        // ── Image upload preview ───────────────────────────────────────────────
+        // ── Lighting sliders ────────────────────────────────────────
+        function updateLight() {
+            dirLight.position.set(
+                parseFloat(document.getElementById('light-x').value),
+                parseFloat(document.getElementById('light-y').value),
+                parseFloat(document.getElementById('light-z').value)
+            );
+        }
+        ['light-x','light-y','light-z'].forEach((id, i) => {
+            document.getElementById(id).addEventListener('input', () => {
+                document.getElementById(['val-x','val-y','val-z'][i]).textContent = parseFloat(document.getElementById(id).value).toFixed(1);
+                updateLight();
+            });
+        });
+        document.getElementById('light-intensity').addEventListener('input', function() {
+            document.getElementById('val-intensity').textContent = parseFloat(this.value).toFixed(2);
+            dirLight.intensity = parseFloat(this.value);
+        });
+        document.getElementById('light-ambient').addEventListener('input', function() {
+            document.getElementById('val-ambient').textContent = parseFloat(this.value).toFixed(2);
+            ambLight.intensity = parseFloat(this.value);
+        });
+
+        // ── Debug toggle ────────────────────────────────────────────
+        document.getElementById('debug-toggle').addEventListener('click', () => {
+            const sec = document.getElementById('debug-section');
+            sec.classList.toggle('visible');
+            document.getElementById('debug-toggle').textContent = sec.classList.contains('visible') ? 'Hide debug views' : 'Show debug views';
+        });
+
+        function setStatus(msg, type = '') {
+            const el = document.getElementById('status');
+            el.textContent = msg; el.className = type;
+        }
+
         document.getElementById('image-upload').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+            const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = ev => {
-                const existing = document.getElementById('image-preview');
-                if (existing) existing.remove();
-                const img = document.createElement('img');
-                img.id = 'image-preview';
-                img.src = ev.target.result;
-                img.style.cssText = 'width:100%; border-radius:6px; margin-top:8px;';
-                document.getElementById('status').after(img);
+                let prev = document.getElementById('image-preview'); if (prev) prev.remove();
+                const img = document.createElement('img'); img.id = 'image-preview'; img.src = ev.target.result;
+                document.getElementById('upload-area').after(img);
             };
             reader.readAsDataURL(file);
         });
 
-        // ── Backend call ───────────────────────────────────────────────────────
         document.getElementById('process-btn').addEventListener('click', async function() {
             const file = document.getElementById('image-upload').files[0];
-            if (!file) { document.getElementById('status').textContent = 'Please upload an image first'; return; }
-            document.getElementById('status').textContent = 'Processing...';
+            if (!file) { setStatus('No image uploaded', 'error'); return; }
+            setStatus('Processing...', 'active');
             const formData = new FormData();
             formData.append('image', file);
             try {
                 const response = await fetch('http://localhost:8000/predict', { method: 'POST', body: formData });
-                const data     = await response.json();
-                // eleton(data.keypoints_3d);
-                poseMannequin(data.keypoints_3d);
-                drawLightArrow(data.light_direction);
-                if (data.debug_image) {
-                    const existing = document.getElementById('debug-img');
-                    if (existing) existing.remove();
-                    const img = document.createElement('img');
-                    img.id = 'debug-img';
-                    img.src = 'data:image/jpeg;base64,' + data.debug_image;
-                    img.style.cssText = 'width:100%; border-radius:6px; margin-top:8px;';
-                    document.getElementById('status').after(img);
-                }
-                document.getElementById('status').textContent = 'Done!';
-                if (data.debug_3d) {
-                    const existing = document.getElementById('debug-3d');
-                    if (existing) existing.remove();
-                    const img = document.createElement('img');
-                    img.id = 'debug-3d';
-                    img.src = 'data:image/jpeg;base64,' + data.debug_3d;
-                    img.style.cssText = 'width:100%; border-radius:6px; margin-top:8px;';
-                    document.getElementById('debug-img').after(img);
-                }
+                const data = await response.json();
+                buildFigure(data.keypoints_3d);
+                const [lx, ly, lz] = data.light_direction;
+                ['light-x','light-y','light-z'].forEach((id, i) => {
+                    document.getElementById(id).value = [lx,ly,lz][i];
+                    document.getElementById(['val-x','val-y','val-z'][i]).textContent = [lx,ly,lz][i].toFixed(1);
+                });
+                updateLight();
+                const debugSec = document.getElementById('debug-section');
+                ['debug_image','debug_3d'].forEach((key, i) => {
+                    const elId = ['debug-img','debug-3d'][i];
+                    if (data[key]) {
+                        let el = document.getElementById(elId);
+                        if (!el) { el = document.createElement('img'); el.id = elId; debugSec.appendChild(el); }
+                        el.src = 'data:image/jpeg;base64,' + data[key];
+                    }
+                });
+                setStatus('Pose extracted');
             } catch (err) {
-                document.getElementById('status').textContent = 'Error connecting to backend';
+                setStatus('Connection error', 'error');
                 console.error(err);
             }
         });
 
-        // ── Render loop ────────────────────────────────────────────────────────
         function animate() {
             requestAnimationFrame(animate);
             if (!isMouseDown) spherical.theta += 0.003;

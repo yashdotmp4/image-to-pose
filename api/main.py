@@ -96,7 +96,7 @@ async def predict(image: UploadFile = File(...)):
         torso_size = max(torso_size / 2, 1e-6)
         keypoints_2d_norm = keypoints_2d_norm / torso_size
 
-        # get Z from MartinezNet
+        # get MartinezNet Z
         inp_2d = torch.tensor(keypoints_2d_norm.reshape(1, -1), dtype=torch.float32).to(device)
         pose_3d_martinez = martinez(inp_2d)[0].detach().cpu().numpy()
 
@@ -108,7 +108,6 @@ async def predict(image: UploadFile = File(...)):
 
     # debug plot
     SKELETON_3D = [(0,1),(0,2),(1,3),(2,4),(0,5),(0,6),(5,6),(5,7),(7,9),(6,8),(8,10),(5,11),(6,12),(11,12),(11,13),(13,15),(12,14),(14,16)]
-    fig, ax1 = plt.subplots(1, 1, figsize=(5, 8))
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
     ax1.set_title('Front View')
     ax1.scatter(pose_3d[:, 0], pose_3d[:, 1], c='red', s=30)
