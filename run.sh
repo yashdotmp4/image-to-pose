@@ -8,7 +8,7 @@ set -e
 cd "$(dirname "$0")"
 
 echo "================================================"
-echo "  PoseAI — Image to 3D Pose Estimation"
+echo "  Image to Pose     "
 echo "================================================"
 
 # Check Python
@@ -29,8 +29,8 @@ echo "[2/3] Checking model checkpoints..."
 
 MISSING=0
 for f in \
-    "checkpoints/hrnet-models-to-test/hrnet_first.pth" \
-    "checkpoints/hrnet-models-to-test/hrnet_mma.pth" \
+    "checkpoints/hrnet-to-test/hrnet_first.pth" \
+    "checkpoints/hrnet-to-test/hrnet_mma.pth" \
     "checkpoints/martinez-to-test/mart_aug_two.pth"
 do
     if [ ! -f "$f" ]; then
