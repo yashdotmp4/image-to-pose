@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import torch
@@ -32,17 +32,41 @@ else:
 print(f'Using device: {device}')
 print(f'Base dir: {BASE_DIR}')
 
-hrnet = HRNet(num_keypoints=17).to(device)
-hrnet.load_state_dict(torch.load(
-    os.path.join(BASE_DIR, 'checkpoints/hrnet_best.pth'),
-    map_location=device, weights_only=False))
-hrnet.eval()
+# ── HRNet model paths ───────────────────────────────────────
+HRNET_MODELS = {
+    'hrnet_first': os.path.join(BASE_DIR, 'checkpoints/hrnet-to-test/hrnet_first.pth'),
+    'hrnet_mma':   os.path.join(BASE_DIR, 'checkpoints/hrnet-to-test/hrnet_mma.pth'),
+}
 
-martinez = MartinezNet(num_joints_in=17, num_joints_out=17).to(device)
-martinez.load_state_dict(torch.load(
-    os.path.join(BASE_DIR, 'checkpoints/best_model.pth'),
-    map_location=device, weights_only=False))
+# ── Load MartinezNet (fixed — best model) ───────────────────
+martinez_path = os.path.join(BASE_DIR, 'checkpoints/martinez-to-test/mart_aug_two.pth')
+martinez_state = torch.load(martinez_path, map_location=device, weights_only=False)
+martinez_hidden = martinez_state['input_proj.linear.weight'].shape[0]
+martinez = MartinezNet(num_joints_in=17, num_joints_out=17, hidden_size=martinez_hidden).to(device)
+martinez.load_state_dict(martinez_state)
 martinez.eval()
+print(f'MartinezNet loaded: mart_aug_two (hidden={martinez_hidden})')
+
+# ── HRNet cache — load on demand, cache current ─────────────
+_hrnet_cache = {}
+
+def get_hrnet(model_name: str):
+    if model_name not in HRNET_MODELS:
+        model_name = 'hrnet_first'
+    if model_name not in _hrnet_cache:
+        path = HRNET_MODELS[model_name]
+        state = torch.load(path, map_location=device, weights_only=False)
+        width = state['final_layer.weight'].shape[1]
+        model = HRNet(num_keypoints=17, width=width).to(device)
+        model.load_state_dict(state)
+        model.eval()
+        _hrnet_cache[model_name] = model
+        print(f'HRNet loaded: {model_name} (width={width})')
+    return _hrnet_cache[model_name]
+
+# Pre-load both HRNet models at startup
+for name in HRNET_MODELS:
+    get_hrnet(name)
 
 transform = T.Compose([
     T.Resize((384, 288)),
@@ -52,10 +76,15 @@ transform = T.Compose([
 
 @app.get("/")
 def root():
-    return {"status": "ok"}
+    return {"status": "ok", "models": list(HRNET_MODELS.keys())}
 
 @app.post("/predict")
-async def predict(image: UploadFile = File(...)):
+async def predict(
+    image: UploadFile = File(...),
+    hrnet_model: str = Form(default='hrnet_first')
+):
+    hrnet = get_hrnet(hrnet_model)
+
     contents = await image.read()
     img = Image.open(io.BytesIO(contents)).convert("RGB")
     orig_w, orig_h = img.size
@@ -89,8 +118,8 @@ async def predict(image: UploadFile = File(...)):
         debug_b64 = base64.b64encode(buf.getvalue()).decode()
 
         # normalise relative to left hip
-        root = keypoints_2d[11:12, :]
-        keypoints_2d_norm = keypoints_2d - root
+        root_kp = keypoints_2d[11:12, :]
+        keypoints_2d_norm = keypoints_2d - root_kp
 
         torso_size = np.linalg.norm(keypoints_2d[5] - keypoints_2d[11]) + np.linalg.norm(keypoints_2d[6] - keypoints_2d[12])
         torso_size = max(torso_size / 2, 1e-6)
@@ -126,12 +155,12 @@ async def predict(image: UploadFile = File(...)):
     debug_3d_b64 = base64.b64encode(buf3d.getvalue()).decode()
 
     pose_3d[:, 1] += 1.0
-
     light_direction = [1, 2, 1]
 
     return JSONResponse({
         "keypoints_3d": pose_3d.tolist(),
         "light_direction": light_direction,
         "debug_image": debug_b64,
-        "debug_3d": debug_3d_b64
+        "debug_3d": debug_3d_b64,
+        "hrnet_model": hrnet_model
     })

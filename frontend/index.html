@@ -25,6 +25,15 @@
         .upload-text { font-size:0.7rem; color:var(--text-dim); letter-spacing:0.05em; }
         .btn { padding:11px 16px; background:var(--accent); color:#0a0a0a; border:none; border-radius:3px; cursor:pointer; font-family:'DM Mono',monospace; font-size:0.7rem; font-weight:500; letter-spacing:0.15em; text-transform:uppercase; transition:opacity 0.15s,transform 0.1s; width:100%; }
         .btn:hover { opacity:0.85; } .btn:active { transform:scale(0.99); }
+        select {
+            width:100%; padding:8px 10px; background:#1a1a1a; color:var(--text);
+            border:1px solid var(--border-light); border-radius:3px;
+            font-family:'DM Mono',monospace; font-size:0.7rem; letter-spacing:0.05em;
+            cursor:pointer; outline:none; appearance:none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 10px center;
+        }
+        select:hover { border-color:var(--accent); }
         #status { font-size:0.68rem; color:var(--text-dim); letter-spacing:0.05em; min-height:16px; }
         #status.active { color:var(--accent); } #status.error { color:#e05555; }
         .divider { border:none; border-top:1px solid var(--border); }
@@ -50,6 +59,15 @@
                 <div class="logo-title">PoseAI</div>
                 <div class="logo-sub">Image → 3D Pose Estimation</div>
             </div>
+
+            <div class="section">
+                <div class="section-label">HRNet Model</div>
+                <select id="hrnet-model">
+                    <option value="hrnet_first">HRNet First (COCO 118k) — Best</option>
+                    <option value="hrnet_mma">HRNet MMA (COCO + MMA dataset)</option>
+                </select>
+            </div>
+
             <div class="section">
                 <div class="section-label">Input Image</div>
                 <div class="upload-area" id="upload-area">
@@ -58,9 +76,11 @@
                     <div class="upload-text">Drop image or click to browse</div>
                 </div>
             </div>
+
             <button class="btn" id="process-btn">Extract Pose</button>
             <div id="status">Ready</div>
             <hr class="divider">
+
             <div class="section">
                 <div class="section-label">Light Direction</div>
                 <div class="slider-group">
@@ -69,6 +89,7 @@
                     <div class="slider-row"><span class="slider-axis">Z</span><input type="range" id="light-z" min="-10" max="10" value="5" step="0.1"><span class="slider-val" id="val-z">5.0</span></div>
                 </div>
             </div>
+
             <div class="section">
                 <div class="section-label">Light Settings</div>
                 <div class="slider-group">
@@ -76,12 +97,14 @@
                     <div class="slider-row"><span class="slider-axis">Am</span><input type="range" id="light-ambient" min="0" max="2" value="0.6" step="0.05"><span class="slider-val" id="val-ambient">0.60</span></div>
                 </div>
             </div>
+
             <div class="section">
                 <div class="section-label">Depth</div>
                 <div class="slider-group">
                     <div class="slider-row"><span class="slider-axis">Dp</span><input type="range" id="depth-scale" min="0" max="5" value="1" step="0.1"><span class="slider-val" id="val-depth">1.0</span></div>
                 </div>
             </div>
+
             <hr class="divider">
             <div class="section">
                 <button class="debug-toggle" id="debug-toggle">Show debug views</button>
@@ -100,7 +123,6 @@
         const viewport = document.getElementById('viewport');
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a1a1a);
-
         const camera = new THREE.PerspectiveCamera(60, viewport.clientWidth / viewport.clientHeight, 0.01, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setPixelRatio(window.devicePixelRatio);
@@ -146,7 +168,6 @@
         let isMouseDown = false, prevMouse = { x: 0, y: 0 };
         let spherical = { theta: 0, phi: Math.PI / 3, radius: 5 };
         const orbitTarget = new THREE.Vector3(0, 1, 0);
-
         function updateCamera() {
             camera.position.set(
                 orbitTarget.x + spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta),
@@ -173,26 +194,16 @@
         // ── Materials ───────────────────────────────────────────────
         const bodyMat  = new THREE.MeshStandardMaterial({ color: 0xd4d4d4, roughness: 0.45, metalness: 0.05, side: THREE.DoubleSide });
         const limbMat  = new THREE.MeshStandardMaterial({ color: 0xd4d4d4, roughness: 0.45, metalness: 0.05 });
-        const jointMat = new THREE.MeshStandardMaterial({ color: 0xb0b0b0, roughness: 0.3,  metalness: 0.15 });
+        const jointMat = new THREE.MeshStandardMaterial({ color: 0xb0b0b0, roughness: 0.3, metalness: 0.15 });
         const headMat  = new THREE.MeshStandardMaterial({ color: 0xe2e2e2, roughness: 0.5 });
         const handMat  = new THREE.MeshStandardMaterial({ color: 0xcacaca, roughness: 0.55 });
 
-        // ── Helpers ─────────────────────────────────────────────────
-        // rWide = radius at p1 (proximal), rNarrow = radius at p2 (distal)
         function makeCylinder(p1, p2, rWide, rNarrow, mat) {
             const dir = new THREE.Vector3().subVectors(p2, p1);
             const len = dir.length();
             if (len < 0.001) return null;
-            // CylinderGeometry(radiusTop, radiusBottom, height)
-            // Three.js cylinder goes +Y (top) to -Y (bottom)
-            // After rotation, p1 maps to bottom, p2 maps to top
-            // So radiusTop = rNarrow (p2 side), radiusBottom = rWide (p1 side)
-            const mesh = new THREE.Mesh(
-                new THREE.CylinderGeometry(rNarrow, rWide, len, 24, 1, false),
-                mat || limbMat
-            );
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
+            const mesh = new THREE.Mesh(new THREE.CylinderGeometry(rNarrow, rWide, len, 24, 1, false), mat || limbMat);
+            mesh.castShadow = true; mesh.receiveShadow = true;
             mesh.position.copy(new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5));
             const up = new THREE.Vector3(0, 1, 0);
             const nd = dir.clone().normalize();
@@ -207,8 +218,7 @@
             const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 24), mat || jointMat);
             mesh.scale.set(rx, ry !== undefined ? ry : rx, rz !== undefined ? rz : rx);
             mesh.position.copy(pos);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
+            mesh.castShadow = true; mesh.receiveShadow = true;
             return mesh;
         }
 
@@ -219,30 +229,21 @@
             const up = new THREE.Vector3().subVectors(sCenter, hCenter).normalize();
             const forward = new THREE.Vector3().crossVectors(right, up).normalize();
             const depth = 0.13, sw = 0.07, hw = 0.045;
-            const lsE = ls.clone().addScaledVector(right, -sw);
-            const rsE = rs.clone().addScaledVector(right,  sw);
-            const lhE = lh.clone().addScaledVector(right, -hw);
-            const rhE = rh.clone().addScaledVector(right,  hw);
-            const f = forward.clone().multiplyScalar(depth);
-            const b = forward.clone().multiplyScalar(-depth);
+            const lsE = ls.clone().addScaledVector(right, -sw), rsE = rs.clone().addScaledVector(right, sw);
+            const lhE = lh.clone().addScaledVector(right, -hw), rhE = rh.clone().addScaledVector(right, hw);
+            const f = forward.clone().multiplyScalar(depth), b = forward.clone().multiplyScalar(-depth);
             const verts = new Float32Array([
-                lsE.x+f.x, lsE.y+f.y, lsE.z+f.z,
-                rsE.x+f.x, rsE.y+f.y, rsE.z+f.z,
-                rhE.x+f.x, rhE.y+f.y, rhE.z+f.z,
-                lhE.x+f.x, lhE.y+f.y, lhE.z+f.z,
-                lsE.x+b.x, lsE.y+b.y, lsE.z+b.z,
-                rsE.x+b.x, rsE.y+b.y, rsE.z+b.z,
-                rhE.x+b.x, rhE.y+b.y, rhE.z+b.z,
-                lhE.x+b.x, lhE.y+b.y, lhE.z+b.z,
+                lsE.x+f.x, lsE.y+f.y, lsE.z+f.z, rsE.x+f.x, rsE.y+f.y, rsE.z+f.z,
+                rhE.x+f.x, rhE.y+f.y, rhE.z+f.z, lhE.x+f.x, lhE.y+f.y, lhE.z+f.z,
+                lsE.x+b.x, lsE.y+b.y, lsE.z+b.z, rsE.x+b.x, rsE.y+b.y, rsE.z+b.z,
+                rhE.x+b.x, rhE.y+b.y, rhE.z+b.z, lhE.x+b.x, lhE.y+b.y, lhE.z+b.z,
             ]);
             const idx = [0,1,2,0,2,3, 5,4,7,5,7,6, 4,0,3,4,3,7, 1,5,6,1,6,2, 4,5,1,4,1,0, 3,2,6,3,6,7];
             const geo = new THREE.BufferGeometry();
             geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
-            geo.setIndex(idx);
-            geo.computeVertexNormals();
+            geo.setIndex(idx); geo.computeVertexNormals();
             const mesh = new THREE.Mesh(geo, bodyMat);
-            mesh.castShadow = true;
-            return mesh;
+            mesh.castShadow = true; return mesh;
         }
 
         function makeHand(wristPos, elbowPos) {
@@ -266,94 +267,60 @@
             return makeSphere(footCenter, 0.08, 0.04, 0.055, handMat);
         }
 
-        // ── Last keypoints (for depth slider) ───────────────────────
+        const T_POSE = [
+            [0.0,1.9,0.0],[-0.06,1.95,0.0],[0.06,1.95,0.0],[-0.12,1.9,0.0],[0.12,1.9,0.0],
+            [-0.25,1.5,0.0],[0.25,1.5,0.0],[-0.7,1.5,0.0],[0.7,1.5,0.0],
+            [-1.1,1.5,0.0],[1.1,1.5,0.0],[-0.12,1.0,0.0],[0.12,1.0,0.0],
+            [-0.12,0.45,0.0],[0.12,0.45,0.0],[-0.12,-0.1,0.0],[0.12,-0.1,0.0],
+        ];
+
+        let figureGroup = null;
         let lastKp = null;
 
         function buildFigure(kp) {
             lastKp = kp;
-            if (figureGroup) {
-                scene.remove(figureGroup);
-                figureGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
-            }
+            if (figureGroup) { scene.remove(figureGroup); figureGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
             figureGroup = new THREE.Group();
-
             const depthScale = parseFloat(document.getElementById('depth-scale').value);
             const pts = kp.map(p => new THREE.Vector3(p[0], p[1], p[2] * depthScale));
 
-            // Torso
             figureGroup.add(makeTorso(pts[5], pts[6], pts[11], pts[12]));
 
-            // Neck
             const shoulderMid = new THREE.Vector3().addVectors(pts[5], pts[6]).multiplyScalar(0.5);
             const neckTop = pts[0].clone(); neckTop.y -= 0.05;
             const neck = makeCylinder(shoulderMid, neckTop, 0.055, 0.045, limbMat);
             if (neck) figureGroup.add(neck);
 
-            // Head — oval
             const earMid = new THREE.Vector3().addVectors(pts[3], pts[4]).multiplyScalar(0.5);
             const headCenter = new THREE.Vector3().addVectors(pts[0], earMid).multiplyScalar(0.5);
             headCenter.y += 0.05;
-            figureGroup.add(makeSphere(headCenter, 0.14, 0.20, 0.12, headMat));;
+            figureGroup.add(makeSphere(headCenter, 0.14, 0.20, 0.12, headMat));
 
-            // Arms — wide at shoulder, narrow at wrist
-            // makeCylinder(p1, p2, rWide=at p1, rNarrow=at p2)
-            const lUA = makeCylinder(pts[5], pts[7], 0.09, 0.08, limbMat); if (lUA) figureGroup.add(lUA);
-            const lFA = makeCylinder(pts[7], pts[9], 0.07, 0.05, limbMat); if (lFA) figureGroup.add(lFA);
-            const rUA = makeCylinder(pts[6], pts[8], 0.09, 0.08, limbMat); if (rUA) figureGroup.add(rUA);
-            const rFA = makeCylinder(pts[8], pts[10], 0.07, 0.05, limbMat); if (rFA) figureGroup.add(rFA);
+            const lUA = makeCylinder(pts[5], pts[7], 0.088, 0.073, limbMat); if (lUA) figureGroup.add(lUA);
+            const lFA = makeCylinder(pts[7], pts[9], 0.073, 0.057, limbMat); if (lFA) figureGroup.add(lFA);
+            const rUA = makeCylinder(pts[6], pts[8], 0.088, 0.073, limbMat); if (rUA) figureGroup.add(rUA);
+            const rFA = makeCylinder(pts[8], pts[10], 0.073, 0.057, limbMat); if (rFA) figureGroup.add(rFA);
 
-            // Hands
-            figureGroup.add(makeHand(pts[9],  pts[7]));
+            figureGroup.add(makeHand(pts[9], pts[7]));
             figureGroup.add(makeHand(pts[10], pts[8]));
 
-            // Legs — wide at hip, narrow at ankle
-            const lTh = makeCylinder(pts[11], pts[13], 0.1, 0.075, limbMat); if (lTh) figureGroup.add(lTh);
-            const lSh = makeCylinder(pts[13], pts[15], 0.075, 0.050, limbMat); if (lSh) figureGroup.add(lSh);
-            const rTh = makeCylinder(pts[12], pts[14], 0.1, 0.075, limbMat); if (rTh) figureGroup.add(rTh);
-            const rSh = makeCylinder(pts[14], pts[16], 0.075, 0.050, limbMat); if (rSh) figureGroup.add(rSh);
+            const lTh = makeCylinder(pts[11], pts[13], 0.110, 0.088, limbMat); if (lTh) figureGroup.add(lTh);
+            const lSh = makeCylinder(pts[13], pts[15], 0.088, 0.062, limbMat); if (lSh) figureGroup.add(lSh);
+            const rTh = makeCylinder(pts[12], pts[14], 0.110, 0.088, limbMat); if (rTh) figureGroup.add(rTh);
+            const rSh = makeCylinder(pts[14], pts[16], 0.088, 0.062, limbMat); if (rSh) figureGroup.add(rSh);
 
-            // Feet
             figureGroup.add(makeFoot(pts[15], pts[13]));
             figureGroup.add(makeFoot(pts[16], pts[14]));
 
-            // Joints
-            [
-                [5,  0.08], [6,  0.08],
-                [7,  0.068],[8,  0.068],
-                [9,  0.052],[10, 0.052],
-                [11, 0.085],[12, 0.085],
-                [13, 0.075],[14, 0.075],
-                [15, 0.052],[16, 0.052],
-            ].forEach(([i, r]) => figureGroup.add(makeSphere(pts[i], r, r, r, jointMat)));
+            [[5,0.08],[6,0.08],[7,0.068],[8,0.068],[9,0.052],[10,0.052],
+             [11,0.085],[12,0.085],[13,0.075],[14,0.075],[15,0.052],[16,0.052]]
+            .forEach(([i, r]) => figureGroup.add(makeSphere(pts[i], r, r, r, jointMat)));
 
-            // Feet on floor
             const minY = Math.min(...kp.map(p => p[1]));
             figureGroup.position.y = -minY + 0.02;
             scene.add(figureGroup);
         }
 
-        // ── Default T-pose ───────────────────────────────────────────
-        const T_POSE = [
-            [ 0.0,   1.9,  0.0],
-            [-0.06,  1.95, 0.0],
-            [ 0.06,  1.95, 0.0],
-            [-0.12,  1.9,  0.0],
-            [ 0.12,  1.9,  0.0],
-            [-0.25,  1.5,  0.0],
-            [ 0.25,  1.5,  0.0],
-            [-0.7,   1.5,  0.0],
-            [ 0.7,   1.5,  0.0],
-            [-1.1,   1.5,  0.0],
-            [ 1.1,   1.5,  0.0],
-            [-0.12,  1.0,  0.0],
-            [ 0.12,  1.0,  0.0],
-            [-0.12,  0.45, 0.0],
-            [ 0.12,  0.45, 0.0],
-            [-0.12, -0.1,  0.0],
-            [ 0.12, -0.1,  0.0],
-        ];
-
-        let figureGroup = null;
         buildFigure(T_POSE);
 
         // ── Depth slider ────────────────────────────────────────────
@@ -408,12 +375,15 @@
             reader.readAsDataURL(file);
         });
 
+        // ── Predict ─────────────────────────────────────────────────
         document.getElementById('process-btn').addEventListener('click', async function() {
             const file = document.getElementById('image-upload').files[0];
             if (!file) { setStatus('No image uploaded', 'error'); return; }
-            setStatus('Processing...', 'active');
+            const hrnetModel = document.getElementById('hrnet-model').value;
+            setStatus(`Processing with ${hrnetModel}...`, 'active');
             const formData = new FormData();
             formData.append('image', file);
+            formData.append('hrnet_model', hrnetModel);
             try {
                 const response = await fetch('http://localhost:8000/predict', { method: 'POST', body: formData });
                 const data = await response.json();
@@ -433,7 +403,7 @@
                         el.src = 'data:image/jpeg;base64,' + data[key];
                     }
                 });
-                setStatus('Pose extracted');
+                setStatus(`Done — ${data.hrnet_model}`);
             } catch (err) {
                 setStatus('Connection error', 'error');
                 console.error(err);
